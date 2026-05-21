@@ -1,0 +1,6 @@
+{
+  "_comment": "Pinned sha256 of https://plannotator.ai/install.sh. Update by running scripts/verify-installer-sha256.sh and committing the new hash. Override at runtime with VIBE_PLANNOTATOR_INSTALL_UNPINNED=1 (not recommended).",
+  "sourceUrl": "https://plannotator.ai/install.sh",
+  "sha256": "591c644a618fa1576978a4e3c5892b7b084e73ec1f93c5edb38c5fea8d5b8cf1",
+  "fetchedAt": "2026-05-21T00:00:00.000Z"
+}
