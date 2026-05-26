@@ -120,9 +120,18 @@ export const createPlugin: VibePluginFactory = (
             "http://localhost:3005",
         }),
       );
+      // Validate iframe/proxy auth against the agent's own validator when the
+      // runtime exposes it (handles key rotation + agents that don't surface
+      // the key via decorator/env, where the captured agentApiKey is null).
+      // Falls back to the captured-key comparison for older runtimes.
+      const hostWithValidate = host as HostServices & {
+        validateApiKey?: (key: string) => boolean;
+      };
       elysiaApp.use(
-        createPlannotatorProxy((key) =>
-          agentApiKey ? key === agentApiKey : false,
+        createPlannotatorProxy(
+          (key) =>
+            hostWithValidate.validateApiKey?.(key) ??
+            (agentApiKey ? key === agentApiKey : false),
         ),
       );
 
