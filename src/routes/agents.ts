@@ -15,13 +15,21 @@ export function createAgentRoutes(_host: HostServices, cfg: AgentRouteConfig) {
     .get("/agents/supported", async () => ({ agents: await detectAll() }))
     .post(
       "/agents/:agent/configure-hook",
-      async ({ params, set }) => {
+      async ({ params, set, request }) => {
         const adapter = getAdapter(params.agent as SupportedAgent);
         if (!adapter) {
           set.status = 404;
           return { ok: false, error: `Unknown agent '${params.agent}'` };
         }
-        const apiKey = cfg.getAgentApiKey();
+        // Prefer the agent's configured key, but fall back to the key the
+        // caller authenticated with. Every request reaching this plugin route
+        // carries `x-agent-api-key`, and some agent runtimes don't surface the
+        // key via the elysia decorator or AGENT_API_KEY env — leaving
+        // cfg.getAgentApiKey() null. The request header is always present and
+        // is itself a valid agent key, which is exactly what the hook needs to
+        // embed for its callback auth.
+        const apiKey =
+          cfg.getAgentApiKey() ?? request.headers.get("x-agent-api-key");
         if (!apiKey) {
           set.status = 500;
           return {
