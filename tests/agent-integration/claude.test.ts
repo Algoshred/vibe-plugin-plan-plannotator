@@ -41,6 +41,36 @@ describe("claude adapter", () => {
     expect(config.hooks.PreToolUse[0].matcher).toBe("ExitPlanMode");
   });
 
+  it("configureHook posts to the profile-scoped sessions path", async () => {
+    await adapter.configureHook({
+      agentApiKey: "k",
+      agentBaseUrl: "http://agent:3005",
+      profile: "team-alpha",
+    });
+    const config = JSON.parse(
+      await readFile(join(fakeHome, ".claude", "hooks.json"), "utf8"),
+    );
+    const command = config.hooks.PreToolUse[0].hooks[0].command;
+    expect(command).toContain(
+      "http://agent:3005/api/profiles/team-alpha/plan/sessions",
+    );
+    // The bare /api/plan/sessions path is rejected by the agent (410 Gone).
+    expect(command).not.toContain("/api/plan/sessions");
+  });
+
+  it("configureHook defaults to the 'default' profile when none is given", async () => {
+    await adapter.configureHook({
+      agentApiKey: "k",
+      agentBaseUrl: "http://agent:3005",
+    });
+    const config = JSON.parse(
+      await readFile(join(fakeHome, ".claude", "hooks.json"), "utf8"),
+    );
+    expect(config.hooks.PreToolUse[0].hooks[0].command).toContain(
+      "/api/profiles/default/plan/sessions",
+    );
+  });
+
   it("configureHook is idempotent — never duplicates entries", async () => {
     await adapter.configureHook({
       agentApiKey: "k",

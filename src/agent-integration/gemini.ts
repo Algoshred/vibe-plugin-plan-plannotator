@@ -41,9 +41,17 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-function buildScript(agentApiKey: string, agentBaseUrl: string): string {
+function buildScript(
+  agentApiKey: string,
+  agentBaseUrl: string,
+  profile: string,
+): string {
   const keyEscaped = agentApiKey.replace(/'/g, "'\\''");
-  const urlEscaped = `${agentBaseUrl}/api/plan/sessions`.replace(/'/g, "'\\''");
+  const urlEscaped =
+    `${agentBaseUrl}/api/profiles/${profile}/plan/sessions`.replace(
+      /'/g,
+      "'\\''",
+    );
   return `#!/bin/bash
 # vibe-plan-plannotator hook for Gemini CLI.
 # Forwards the plan content on stdin to the vibecontrols agent.
@@ -75,12 +83,16 @@ export const adapter: AgentAdapter = {
     return fileExists(hookPath());
   },
 
-  async configureHook({ agentApiKey, agentBaseUrl }) {
+  async configureHook({ agentApiKey, agentBaseUrl, profile = "default" }) {
     if (!safeHomePath(hookPath())) {
       throw new Error(`refusing to write outside $HOME: ${hookPath()}`);
     }
     await mkdir(hookDir(), { recursive: true });
-    await writeFile(hookPath(), buildScript(agentApiKey, agentBaseUrl), "utf8");
+    await writeFile(
+      hookPath(),
+      buildScript(agentApiKey, agentBaseUrl, profile),
+      "utf8",
+    );
     await chmod(hookPath(), 0o755);
     return { configPath: hookPath() };
   },

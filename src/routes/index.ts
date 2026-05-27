@@ -9,6 +9,7 @@ import { createStatusRoute } from "./status.js";
 interface RoutesConfig {
   getAgentApiKey: () => string | null;
   getAgentBaseUrl: () => string;
+  profile: string;
 }
 
 export function createPlannotatorRoutes(host: HostServices, cfg: RoutesConfig) {

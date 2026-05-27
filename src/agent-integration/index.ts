@@ -28,6 +28,11 @@ export interface AgentAdapter {
   configureHook(opts: {
     agentApiKey: string;
     agentBaseUrl: string;
+    /**
+     * Daemon profile — hooks post to /api/profiles/<profile>/plan/sessions.
+     * Optional for ergonomics; adapters default to "default".
+     */
+    profile?: string;
   }): Promise<{ configPath: string }>;
   unconfigureHook(): Promise<void>;
 }
