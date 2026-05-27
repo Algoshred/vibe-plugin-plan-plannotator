@@ -79,6 +79,28 @@ function buildPath(): string {
   return `${local}:${parent}`;
 }
 
+/**
+ * Build the plannotator argv for a session.
+ *
+ * `plan` and `annotate` both open plannotator's annotation server on the
+ * plan markdown file (`annotate <file>`). Running the binary with *no*
+ * subcommand is reserved for stdin hook-integration mode: plannotator reads
+ * EOF and exits 0 immediately, so the HTTP server never binds and the spawn
+ * is reported as "failed to start" (with empty stderr). So the default
+ * `plan` mode must pass `annotate <planPath>`, not run bare.
+ */
+export function buildPlannotatorArgs(
+  binaryPath: string,
+  mode: PlanMode,
+  planPath: string,
+): string[] {
+  const args: string[] = [binaryPath];
+  if (mode === "review") args.push("review");
+  else if (mode === "archive") args.push("archive");
+  else args.push("annotate", planPath); // plan + annotate
+  return args;
+}
+
 export async function spawnPlannotator(
   sessionId: string,
   req: StartSessionRequest,
@@ -100,12 +122,7 @@ export async function spawnPlannotator(
   }
 
   const mode = req.mode ?? "plan";
-  const args: string[] = [status.binaryPath];
-  if (mode === "review") args.push("review");
-  else if (mode === "annotate") args.push("annotate", planPath);
-  else if (mode === "archive") args.push("archive");
-  // For default plan mode, pass the markdown file path so plannotator
-  // reads from disk instead of blocking on stdin.
+  const args = buildPlannotatorArgs(status.binaryPath, mode, planPath);
 
   const proc = Bun.spawn(args, {
     stdout: "pipe",

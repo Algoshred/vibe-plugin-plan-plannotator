@@ -49,7 +49,7 @@ export type {
 } from "./types.js";
 
 const PLUGIN_NAME = "plan-plannotator";
-const PLUGIN_VERSION = "2026.521.1";
+const PLUGIN_VERSION = "2026.527.2";
 
 type PlanPlannotatorVibePlugin = VibePlugin & {
   hasUI?: boolean;
