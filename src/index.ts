@@ -59,8 +59,11 @@ type PlanPlannotatorVibePlugin = VibePlugin & {
 let agentApiKey: string | null = null;
 
 export const createPlugin: VibePluginFactory = (
-  _ctx: ProfileContext,
+  ctx: ProfileContext,
 ): VibePlugin => {
+  // Daemon profile this instance serves — threaded into the hook URL so it
+  // posts to the profile-scoped /api/profiles/<profile>/plan/sessions.
+  const profile = ctx?.name ?? "default";
   const lifecycle = createLifecycleHooks({
     name: PLUGIN_NAME,
     telemetryEventName: "plan.provider.ready",
@@ -118,6 +121,7 @@ export const createPlugin: VibePluginFactory = (
             host.getAgentBaseUrl?.() ??
             process.env.VIBE_AGENT_URL ??
             "http://localhost:3005",
+          profile,
         }),
       );
       // Validate iframe/proxy auth against the agent's own validator when the

@@ -78,13 +78,19 @@ async function atomicWriteJson(
   );
 }
 
-function buildCommand(agentApiKey: string, agentBaseUrl: string): string {
+function buildCommand(
+  agentApiKey: string,
+  agentBaseUrl: string,
+  profile: string,
+): string {
   // The hook input arrives on stdin as JSON. We push the entire JSON body
   // through to the agent and let the agent's /api/plan/sessions handler
   // pluck the plan text out of `tool_input.plan` (Claude Code's
   // ExitPlanMode tool shape).
   const key = JSON.stringify(agentApiKey);
-  const url = JSON.stringify(`${agentBaseUrl}/api/plan/sessions`);
+  const url = JSON.stringify(
+    `${agentBaseUrl}/api/profiles/${profile}/plan/sessions`,
+  );
   // shell-quote the variables — we use printf to avoid eval-style risks.
   return `cat | curl -sf -X POST -H 'Content-Type: application/json' -H "x-agent-api-key: $(printf '%s' ${key})" --data-binary @- $(printf '%s' ${url}) >/dev/null || true`;
 }
@@ -115,7 +121,7 @@ export const adapter: AgentAdapter = {
     return preTool.some((entry) => entry.source === HOOK_NAME);
   },
 
-  async configureHook({ agentApiKey, agentBaseUrl }) {
+  async configureHook({ agentApiKey, agentBaseUrl, profile = "default" }) {
     const config = await readJsonOrEmpty(hooksPath());
     config.hooks = config.hooks ?? {};
     config.hooks.PreToolUse = config.hooks.PreToolUse ?? [];
@@ -131,7 +137,7 @@ export const adapter: AgentAdapter = {
       hooks: [
         {
           type: "command",
-          command: buildCommand(agentApiKey, agentBaseUrl),
+          command: buildCommand(agentApiKey, agentBaseUrl, profile),
         },
       ],
     });

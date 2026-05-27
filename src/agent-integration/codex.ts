@@ -57,8 +57,12 @@ function stripExistingBlock(source: string): string {
   return `${before.replace(/\n+$/, "")}\n${after.replace(/^\n+/, "")}`;
 }
 
-function buildBlock(agentApiKey: string, agentBaseUrl: string): string {
-  const url = `${agentBaseUrl}/api/plan/sessions`;
+function buildBlock(
+  agentApiKey: string,
+  agentBaseUrl: string,
+  profile: string,
+): string {
+  const url = `${agentBaseUrl}/api/profiles/${profile}/plan/sessions`;
   const escapedKey = agentApiKey.replace(/"/g, '\\"');
   const escapedUrl = url.replace(/"/g, '\\"');
   return [
@@ -96,10 +100,10 @@ export const adapter: AgentAdapter = {
     return text.includes(SECTION_MARKER_START);
   },
 
-  async configureHook({ agentApiKey, agentBaseUrl }) {
+  async configureHook({ agentApiKey, agentBaseUrl, profile = "default" }) {
     const current = await readOrEmpty(configPath());
     const cleaned = stripExistingBlock(current);
-    const block = buildBlock(agentApiKey, agentBaseUrl);
+    const block = buildBlock(agentApiKey, agentBaseUrl, profile);
     const next = `${cleaned.trim()}\n\n${block}`.replace(/^\n+/, "");
     await atomicWrite(configPath(), next);
     return { configPath: configPath() };

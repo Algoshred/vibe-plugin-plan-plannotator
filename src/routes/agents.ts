@@ -8,6 +8,10 @@ import type { SupportedAgent } from "../types.js";
 interface AgentRouteConfig {
   getAgentApiKey: () => string | null;
   getAgentBaseUrl: () => string;
+  // Daemon profile this plugin instance serves. The hook posts to the
+  // profile-scoped path `/api/profiles/<profile>/plan/sessions`; the bare
+  // `/api/plan/sessions` path is rejected (410 Gone).
+  profile: string;
 }
 
 export function createAgentRoutes(_host: HostServices, cfg: AgentRouteConfig) {
@@ -42,6 +46,7 @@ export function createAgentRoutes(_host: HostServices, cfg: AgentRouteConfig) {
           const result = await adapter.configureHook({
             agentApiKey: apiKey,
             agentBaseUrl: cfg.getAgentBaseUrl(),
+            profile: cfg.profile,
           });
           return { ok: true, configPath: result.configPath };
         } catch (err) {
