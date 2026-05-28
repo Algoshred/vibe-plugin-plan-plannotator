@@ -11,7 +11,7 @@ import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
 import { homedir as osHomedir } from "node:os";
 
 function homedir(): string {
-  return process.env.HOME ?? osHomedir();
+  return osHomedir();
 }
 import { dirname, join, resolve } from "node:path";
 

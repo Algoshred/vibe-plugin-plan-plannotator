@@ -7,6 +7,8 @@
  * `http://localhost:3005/plan/<sessionId>/` works the same way.
  */
 
+import { homedir as osHomedir } from "node:os";
+
 import type { HostServices } from "@vibecontrols/plugin-sdk";
 
 import type {
@@ -63,7 +65,7 @@ export class PlannotatorProvider implements PlanProvider {
   async startSession(req: StartSessionRequest): Promise<PlanSession> {
     const id = crypto.randomUUID();
     const dataDir =
-      this.host.getDataDir?.() ?? `${process.env.HOME}/.boff/vibecontrols`;
+      this.host.getDataDir?.() ?? `${osHomedir()}/.boff/vibecontrols`;
     const { pid, port } = await spawnPlannotator(id, req, dataDir);
 
     const persisted: PersistedSession = {
