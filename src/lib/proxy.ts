@@ -27,8 +27,52 @@ interface Session {
   expiresAt: number;
 }
 
-const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 const COOKIE_NAME = "__vibe_plan_plannotator_session";
+
+/**
+ * Return `url.search` with any `apiKey` param (case-insensitive) removed.
+ * The credential is for the proxy boundary only — plannotator must never
+ * see it.
+ */
+function searchWithoutApiKey(url: URL): string {
+  const sp = new URLSearchParams();
+  for (const [k, v] of url.searchParams) {
+    if (k.toLowerCase() === "apikey") continue;
+    sp.append(k, v);
+  }
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+/**
+ * For mutating requests authenticated by a session cookie, require an
+ * Origin/Referer matching the proxy's own host. CSRF shield — cookie is
+ * SameSite=None for iframe embedding.
+ */
+function originAllowed(request: Request): boolean {
+  const method = request.method.toUpperCase();
+  if (method === "GET" || method === "HEAD") return true;
+
+  const proxyHost = new URL(request.url).host;
+  const origin = request.headers.get("origin");
+  if (origin) {
+    try {
+      return new URL(origin).host === proxyHost;
+    } catch {
+      return false;
+    }
+  }
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).host === proxyHost;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
 const sessions = new Map<string, Session>();
 
 function generateSessionToken(): string {
@@ -170,6 +214,14 @@ async function handle(
     );
   }
 
+  // CSRF guard for cookie-authed mutating requests.
+  if (!auth.hasValidApiKey && auth.hasValidSession && !originAllowed(request)) {
+    return new Response(
+      JSON.stringify({ error: "Forbidden — invalid Origin" }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   const url = new URL(request.url);
   const { sessionId, remainder } = stripSessionIdFromPath(url.pathname);
   if (!sessionId) {
@@ -196,7 +248,10 @@ async function handle(
     sessionCookieHeader = `${COOKIE_NAME}=${session.token}; Path=/plan/${sessionId}/; HttpOnly; SameSite=None; Secure; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`;
   }
 
-  const upstreamUrl = `http://127.0.0.1:${port}${remainder}${url.search}`;
+  // Strip apiKey from query before forwarding — proxy-boundary credential
+  // only; plannotator must never see it.
+  const sanitisedSearch = searchWithoutApiKey(url);
+  const upstreamUrl = `http://127.0.0.1:${port}${remainder}${sanitisedSearch}`;
   const upstreamHeaders = new Headers();
   const hopByHop = new Set([
     "connection",
@@ -207,6 +262,8 @@ async function handle(
     "upgrade",
     "proxy-authorization",
     "proxy-authenticate",
+    // Drop Referer — may carry `?apiKey=` from the parent iframe URL.
+    "referer",
   ]);
   request.headers.forEach((value, key) => {
     if (!hopByHop.has(key.toLowerCase())) {
