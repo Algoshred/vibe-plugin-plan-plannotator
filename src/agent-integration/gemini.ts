@@ -10,7 +10,7 @@ import { mkdir, writeFile, stat, chmod, unlink } from "node:fs/promises";
 import { homedir as osHomedir } from "node:os";
 
 function homedir(): string {
-  return osHomedir();
+  return process.env.HOME ?? osHomedir();
 }
 import { join, resolve } from "node:path";
 
