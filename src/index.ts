@@ -166,6 +166,16 @@ export const createPlugin: VibePluginFactory = (
       process.stdout.write("  Plugin 'plan-plannotator' stopped\n");
     },
 
+    // `vibe nuke` runs this before the plugin is uninstalled: stop every
+    // long-running plannotator HTTP server this plugin spawned so none
+    // outlive the agent. The agent names no provider — this lives here.
+    async onNuke(_host, ctx) {
+      stopIdleWatchdog();
+      if (ctx.dryRun) return { reaped: ["plannotator session servers"] };
+      await stopAllSessions();
+      return { reaped: ["plannotator session servers"] };
+    },
+
     onCliSetup(programArg: unknown) {
       registerPlannotatorCommands(programArg as Command);
     },
