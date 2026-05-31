@@ -95,7 +95,12 @@ export const createPlugin: VibePluginFactory = (
       },
     ],
     hasUI: true,
-    publicPaths: ["/plan/"],
+    // `/plan/` is now owned by the meta plugin (`vibe-plugin-plan`), which
+    // mounts the generic iframe-ticket -> cookie bridge there and dispatches
+    // into this provider via `PlanProvider.proxyRequest`. The meta plugin
+    // declares `publicPaths: ["/plan/"]` itself, so we no longer need to
+    // - and shouldn't - re-declare it here (the agent stays provider-
+    // agnostic).
     cliCommand: "plan-plannotator",
     apiPrefix: "/api/plan-plannotator",
 
@@ -131,16 +136,21 @@ export const createPlugin: VibePluginFactory = (
       const hostWithValidate = host as HostServices & {
         validateApiKey?: (key: string) => boolean;
       };
-      elysiaApp.use(
-        createPlannotatorProxy(
-          (key) =>
-            hostWithValidate.validateApiKey?.(key) ??
-            (agentApiKey ? key === agentApiKey : false),
-        ),
-      );
+      const validateApiKey = (key: string) =>
+        hostWithValidate.validateApiKey?.(key) ??
+        (agentApiKey ? key === agentApiKey : false);
+      // NOTE: the Elysia `/plan/*` mount below is retained for backward
+      // compatibility (and direct `?apiKey=` entry paths during the
+      // rollout) but is effectively shadowed by the meta plugin
+      // (`vibe-plugin-plan`) which registers the same prefix first and
+      // dispatches into this provider via `PlanProvider.proxyRequest`.
+      elysiaApp.use(createPlannotatorProxy(validateApiKey));
 
       // Register provider with the agent's ServiceRegistry under "plan".
-      const provider = new PlannotatorProvider(host);
+      // Threading `validateApiKey` lets the meta plugin's iframe-bridge
+      // call `provider.proxyRequest(req)` end-to-end without going via
+      // routing.
+      const provider = new PlannotatorProvider(host, validateApiKey);
       const registry = host.serviceRegistry as
         | {
             registerProvider?: (

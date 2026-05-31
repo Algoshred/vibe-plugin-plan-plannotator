@@ -199,6 +199,21 @@ export function createPlannotatorProxy(
     });
 }
 
+/**
+ * Standalone request handler — same logic as the Elysia mount, but
+ * callable from outside the routing layer. The meta plugin's
+ * iframe-bridge invokes this through `PlannotatorProvider.proxyRequest`
+ * so the agent can stay provider-agnostic (its `/plan/*` route is a
+ * blind plugin-router delegator, and the meta plugin owns the
+ * iframe-ticket -> cookie auth bridge in front of this handler).
+ */
+export async function handleProxyRequest(
+  request: Request,
+  validateApiKey: (key: string) => boolean,
+): Promise<Response> {
+  return handle(request, validateApiKey);
+}
+
 async function handle(
   request: Request,
   validateApiKey: (key: string) => boolean,

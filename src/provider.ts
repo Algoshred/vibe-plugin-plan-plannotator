@@ -27,6 +27,7 @@ import {
   stopSession,
   touchSession,
 } from "./lib/process.js";
+import { handleProxyRequest } from "./lib/proxy.js";
 
 interface PersistedSession {
   id: string;
@@ -48,7 +49,38 @@ function nowIso(): string {
 export class PlannotatorProvider implements PlanProvider {
   readonly name = "plannotator";
 
-  constructor(private readonly host: HostServices) {}
+  constructor(
+    private readonly host: HostServices,
+    /**
+     * Optional API-key validator. Used by `proxyRequest` to authenticate
+     * the inbound request after the meta plugin's iframe-bridge has
+     * injected `x-agent-api-key`. When omitted, falls back to the host's
+     * own `validateApiKey` (if exposed) so existing callers don't need
+     * to change.
+     */
+    private readonly validateApiKey?: (key: string) => boolean,
+  ) {}
+
+  /**
+   * Reverse-proxy an incoming `/plan/<sid>/*` request to the per-session
+   * plannotator subprocess. The meta plugin's iframe-bridge calls this
+   * after authenticating the inbound iframe ticket / scoped cookie and
+   * injecting `x-agent-api-key`. Provider-side auth (key / cookie / query)
+   * still applies — this method is the same handler the Elysia mount in
+   * `lib/proxy.ts` uses, exposed for direct invocation so the meta
+   * plugin can dispatch to it without depending on Elysia routing.
+   */
+  async proxyRequest(req: Request): Promise<Response> {
+    const validator =
+      this.validateApiKey ??
+      ((key: string) => {
+        const h = this.host as HostServices & {
+          validateApiKey?: (k: string) => boolean;
+        };
+        return h.validateApiKey?.(key) ?? false;
+      });
+    return handleProxyRequest(req, validator);
+  }
 
   getCapabilities(): PlanProviderCapabilities {
     return {
